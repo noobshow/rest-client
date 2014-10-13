@@ -16,6 +16,7 @@ describe RestClient::Request, :include_helpers do
 
     @net.stub(:start).and_yield(@http)
     @net.stub(:use_ssl=)
+    @http.stub(:use_ssl?)
     @net.stub(:verify_mode=)
     @net.stub(:verify_callback=)
     allow(@net).to receive(:ciphers=)
@@ -56,8 +57,8 @@ describe RestClient::Request, :include_helpers do
     res.stub(:code).and_return("200")
     res.stub(:body).and_return('body')
     res.stub(:[]).with('content-encoding').and_return(nil)
-    @request.send(:process_result, res).body.should eq 'body'
-    @request.send(:process_result, res).to_s.should eq 'body'
+    @request.send(:process_result, res, @http).body.should eq 'body'
+    @request.send(:process_result, res, @http).to_s.should eq 'body'
   end
 
   it "doesn't classify successful requests as failed" do
@@ -66,7 +67,7 @@ describe RestClient::Request, :include_helpers do
       res.stub(:code).and_return(code.to_s)
       res.stub(:body).and_return("")
       res.stub(:[]).with('content-encoding').and_return(nil)
-      @request.send(:process_result, res).should be_empty
+      @request.send(:process_result, res, @http).should be_empty
     end
   end
 
@@ -417,24 +418,24 @@ describe RestClient::Request, :include_helpers do
   describe "exception" do
     it "raises Unauthorized when the response is 401" do
       res = response_double(:code => '401', :[] => ['content-encoding' => ''], :body => '' )
-      lambda { @request.send(:process_result, res) }.should raise_error(RestClient::Unauthorized)
+      lambda { @request.send(:process_result, res, @http) }.should raise_error(RestClient::Unauthorized)
     end
 
     it "raises ResourceNotFound when the response is 404" do
       res = response_double(:code => '404', :[] => ['content-encoding' => ''], :body => '' )
-      lambda { @request.send(:process_result, res) }.should raise_error(RestClient::ResourceNotFound)
+      lambda { @request.send(:process_result, res, @http) }.should raise_error(RestClient::ResourceNotFound)
     end
 
     it "raises RequestFailed otherwise" do
       res = response_double(:code => '500', :[] => ['content-encoding' => ''], :body => '' )
-      lambda { @request.send(:process_result, res) }.should raise_error(RestClient::InternalServerError)
+      lambda { @request.send(:process_result, res, @http) }.should raise_error(RestClient::InternalServerError)
     end
   end
 
   describe "block usage" do
     it "returns what asked to" do
       res = response_double(:code => '401', :[] => ['content-encoding' => ''], :body => '' )
-      @request.send(:process_result, res){|response, request| "foo"}.should eq "foo"
+      @request.send(:process_result, res, @http){|response, request| "foo"}.should eq "foo"
     end
   end
 

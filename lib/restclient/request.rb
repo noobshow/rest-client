@@ -615,7 +615,7 @@ module RestClient
             fetch_body(http_response)
           }
           log_response res
-          process_result res, & block
+          process_result res, http, & block
         end
       end
     rescue EOFError
@@ -693,13 +693,31 @@ module RestClient
       http_response
     end
 
-    def process_result res, & block
+    def process_result res, http, & block
       if @raw_response
         # We don't decode raw requests
         response = RawResponse.new(@tf, res, args, self)
       else
         decoded = Request.decode(res['content-encoding'], res.body)
         response = Response.create(decoded, res, args, self)
+      end
+
+      if http.use_ssl? && http.instance_variable_get(:@ssl_session)
+        ssl_session = http.instance_variable_get(:@ssl_session).to_text
+        ssl_version = nil
+        ssl_cipher = nil
+
+        if ssl_session
+          # TODO it would be nice to distinguish between an error and a version
+          #      of ruby that doesn't have the @ssl_session instance variable
+          ssl_version = ssl_session.match(/^\s*Protocol\s*:\s*(\S+)$/)
+          ssl_version &&= ssl_version[1]
+          ssl_cipher = ssl_session.match(/^\s*Cipher\s*:\s*(\S+)$/)
+          ssl_cipher &&= ssl_cipher[1]
+        end
+
+        response.instance_variable_set(:@ssl_session_version, ssl_version)
+        response.instance_variable_set(:@ssl_session_cipher, ssl_cipher)
       end
 
       if block_given?

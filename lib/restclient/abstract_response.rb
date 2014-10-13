@@ -5,7 +5,7 @@ module RestClient
 
   module AbstractResponse
 
-    attr_reader :net_http_res, :args, :request
+    attr_reader :net_http_res, :args, :request, :ssl_session_version, :ssl_session_cipher
 
     def inspect
       raise NotImplementedError.new('must override in subclass')
